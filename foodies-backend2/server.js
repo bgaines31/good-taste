@@ -1,7 +1,7 @@
 require('dotenv').config('.env');
 const express = require('express');
 const app = express();
-const { User, Recipe } = require('./db');
+const { User, Recipe, Op } = require('./db');
 const bcrypt = require('bcrypt');
 const cors = require('cors');
 const morgan = require('morgan');
@@ -89,13 +89,20 @@ app.get('/recipes', setUser, async (req, res, next) => {
     if (!req.user) {
       res.sendStatus(401);
     } else {
-      res.send(await Recipe.findAll());
-      console.log(req.user);
+      const userRecipes = await Recipe.findAll({
+        where: {
+          ownerId: req.user.id,
+        },
+      });
+      console.log(userRecipes)
+            res.send(userRecipes);
+          
     }
   } catch (error) {
     console.error(error);
     next(error);
   }
+  
 });
 
 // READ ONE -- DONE with JWT
@@ -142,7 +149,9 @@ app.post('/recipes', setUser, async (req, res) => {
       cookTime,
       ownerId: req.user.id,
     });
-    res.json(await Recipe.findAll());
+    res.json(await Recipe.findAll({ where: {
+      ownerId: req.user.id,
+    },}));
   }
 });
 
@@ -161,7 +170,9 @@ app.delete('/recipes/:id', setUser, async (req, res) => {
     let deletedRecipe = await Recipe.destroy({
       where: { id: req.params.id },
     });
-    res.send(await Recipe.findAll());
+    res.send(await Recipe.findAll({ where: {
+      ownerId: req.user.id,
+    },}));
   }
 });
 
@@ -170,7 +181,8 @@ app.put('/recipes/:id', setUser, async (req, res) => {
   let recipe = await Recipe.findByPk(req.params.id);
   if (!req.user) {
     res.sendStatus(401);
-  } else if (recipe.ownerId != req.user.id) {
+  }
+   else if (recipe.ownerId != req.user.id) {
     console.log(req.body.ownerId);
     console.log(req.user.id);
     res
@@ -178,9 +190,12 @@ app.put('/recipes/:id', setUser, async (req, res) => {
       .send(
         'this is not your recipe to update! stop trying to control everything!'
       );
-  } else {
+  }
+   else {
     await Recipe.update(req.body, { where: { id: req.params.id } });
-    res.send(await Recipe.findAll());
+    res.send(await Recipe.findAll({ where: {
+      ownerId: req.user.id,
+    },}));
   }
 });
 
